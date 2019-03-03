@@ -18,9 +18,6 @@ data Direction = L | R | U | D deriving (Eq,Ord,Enum,Show)
 columnCount = 4
 rowCount = 4
 
--- this constrains how many possible tile values are available
-bitsPerTile = 4
-
 -- tile values to seed into empty spaces
 lowSeed = 1
 highSeed = 2
@@ -28,7 +25,7 @@ highSeed = 2
 -- the probability of seeding highSeed instead of lowSeed
 highSeedProbability = 1 % 10
 
--- letters to show on tiles
+-- characters to show on tiles
 firstLetter = 'A'
 winningLetter = 'K'
 
@@ -49,11 +46,18 @@ allCoords = concat (map rowCoords rows)
 emptyCoords :: Board -> [(Coord, Coord)]
 emptyCoords b = filter (\c -> getTile b c == 0) allCoords
 
+winningTile :: Tile
+winningTile = fromIntegral ((winningIndex - firstIndex) + 1)
+  where firstIndex = ord firstLetter
+        winningIndex = ord winningLetter
+bitsPerTile = fromIntegral (tryShift 1)
+  where tryShift n = 
+          if shiftL n 1 > winningTile then n else tryShift (n + 1)
+tileMask = fromIntegral ((shiftL bitsPerTile 1) - 1)
+
 shiftForTile :: Coord -> Coord -> Int
 shiftForTile x y = ((maxTileIndex - ((y * columnCount) + x)) * bitsPerTile)
   where maxTileIndex = (rowCount * columnCount) - 1
-
-tileMask = fromIntegral ((shiftL bitsPerTile 1) - 1)
 
 getTile :: Board -> (Coord, Coord) -> Tile
 getTile b (x, y) = tileMask .&. (shiftR b (shiftForTile x y))
@@ -122,9 +126,6 @@ isLosingBoard b = (length (emptyCoords b) == 0)
 
 isWinningBoard :: Board -> Bool
 isWinningBoard b = maximum (getTiles b allCoords) >= winningTile
-  where winningTile = fromIntegral ((winningIndex - firstIndex) + 1)
-        firstIndex = ord firstLetter
-        winningIndex = ord winningLetter
 
 -- RENDERING ------------------------------------------------------------------
 
