@@ -52,7 +52,7 @@ winningTile = fromIntegral ((winningIndex - firstIndex) + 1)
         winningIndex = ord winningLetter
 bitsPerTile = fromIntegral (tryShift 1)
   where tryShift n = 
-          if shiftL n 1 > winningTile then n else tryShift (n + 1)
+          if shiftL 1 n > winningTile then n else tryShift (n + 1)
 tileMask = fromIntegral ((shiftL bitsPerTile 1) - 1)
 
 shiftForTile :: Coord -> Coord -> Int
@@ -91,11 +91,9 @@ collapseCoordLists b (cs:rest) = collapseCoordLists (collapseCoords b cs) rest
   where collapseCoords b cs = 
           setTiles b cs (collapseTiles (getTiles b cs))
         collapseTiles ts = 
-          leftPad (length ts) (combineTilesFromEnd (removeEmptyTiles ts))
+          padEnd (length ts) (combineTiles (removeEmptyTiles ts))
         removeEmptyTiles ts =
           filter (\t -> t > 0) ts
-        combineTilesFromEnd tiles = 
-          reverse (combineTiles (reverse tiles))
         combineTiles (a:rest) =
           if length rest == 0 then [ a ]
           else if a == (head rest) then
@@ -103,17 +101,17 @@ collapseCoordLists b (cs:rest) = collapseCoordLists (collapseCoords b cs) rest
           else
             [ a ] ++ (combineTiles rest)
         combineTiles rest = rest
-        leftPad len cs = 
-          if length cs < len then leftPad len (0:cs)
+        padEnd len cs = 
+          if length cs < len then padEnd len (cs ++ [0])
           else cs
 
 collapseBoard :: Board -> Direction -> Board
 collapseBoard b dir = 
   case dir of
-    R -> collapseCoordLists b (map rowCoords rows)
-    L -> collapseCoordLists b (map reverse (map rowCoords rows))
-    D -> collapseCoordLists b (map columnCoords rows)
-    U -> collapseCoordLists b (map reverse (map columnCoords rows))
+    L -> collapseCoordLists b (map rowCoords rows)
+    R -> collapseCoordLists b (map reverse (map rowCoords rows))
+    U -> collapseCoordLists b (map columnCoords rows)
+    D -> collapseCoordLists b (map reverse (map columnCoords rows))
 
 makeMove :: Board -> Direction -> Rand -> Board
 makeMove b dir rand = do
