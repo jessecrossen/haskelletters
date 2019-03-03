@@ -7,8 +7,8 @@ This is an interactive puzzle game with similar mechanics to
 [Threes](http://play.threesgame.com/), [1024](https://1024game.org/),
 [2048](https://play2048.co/), etc. I wrote it as a first attempt at learning
 Haskell, so it's pretty basic (and also probably not as idiomatic as it might 
-be). It's made to look best on a terminal that supports 256 colors and has a 
-dark background.
+be). It will look best on a terminal with a dark background that supports 
+unicode and 256 colors.
 
 Each turn, an A or B will be added to an empty space on the board, and you 
 can use the arrow keys to slide all tiles to the left, right, top, or bottom.
@@ -24,5 +24,5 @@ Running
 I haven't made a distribution build, but it can be run using `runhaskell`:
 
 ```
-$ runhaskell src/main.hs
+$ runhaskell main.hs
 ```

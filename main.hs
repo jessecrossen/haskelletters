@@ -150,17 +150,17 @@ tileColor t = "\ESC[38;5;" ++ (show (tileColorCode t)) ++ "m"
 renderBoard :: Board -> String
 renderBoard b = 
   borderColor ++
-  renderBorder ++
-  concat (map (\r -> "| " ++ (renderRow b r) ++ " |\n") rows) ++
-  renderBorder ++
+  (renderBorder "┏" "┓") ++
+  concat (map (\r -> "┃ " ++ (renderRow b r) ++ " ┃\n") rows) ++
+  (renderBorder "┗" "┛") ++
   defaultColor
-  where renderBorder = 
-          "+" ++ (concat (replicate columnCount "--")) ++ "-+\n"
+  where renderBorder lc rc = 
+          lc ++ (concat (replicate columnCount "━━")) ++ "━" ++ rc ++ "\n"
         renderRow b y = 
           intercalate " " $ map renderTile (getTiles b (rowCoords y))
         renderTile t = 
           tileColor t ++
-          (if t == 0 then "." else letter (t - 1)) ++
+          (if t == 0 then "·" else letter (t - 1)) ++
           borderColor
         letter i =
           [ chr ((ord firstLetter) + (fromIntegral i)) ]
