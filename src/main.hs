@@ -17,19 +17,20 @@ data Direction = L | R | U | D deriving (Eq,Ord,Enum,Show)
 -- the size of the board
 columnCount = 4
 rowCount = 4
-tileCount = rowCount * columnCount
 
--- tile storage format
+-- this constrains how many possible tile values are available
 bitsPerTile = 4
-tileMask = fromIntegral ((shiftL bitsPerTile 1) - 1)
 
--- the probability of seeding a B instead of an A
+-- tile values to seed into empty spaces
+lowSeed = 1
+highSeed = 2
+
+-- the probability of seeding highSeed instead of lowSeed
 highSeedProbability = 1 % 10
 
 -- letters to show on tiles
-firstLetter = ord 'A'
-winningLetter = ord 'K'
-winningTile = fromIntegral ((winningLetter - firstLetter) + 1)
+firstLetter = 'A'
+winningLetter = 'K'
 
 -- BOARD STATE ----------------------------------------------------------------
 
@@ -40,16 +41,19 @@ rowCoords :: Coord -> [(Coord, Coord)]
 rowCoords y = map (\x -> (x, y)) columns
 
 columnCoords :: Coord -> [(Coord, Coord)]
-columnCoords x = map (\y -> (x, y)) columns
+columnCoords x = map (\y -> (x, y)) rows
 
 allCoords :: [(Coord, Coord)]
-allCoords = concat $ map rowCoords rows
+allCoords = concat (map rowCoords rows)
 
 emptyCoords :: Board -> [(Coord, Coord)]
 emptyCoords b = filter (\c -> getTile b c == 0) allCoords
 
 shiftForTile :: Coord -> Coord -> Int
-shiftForTile x y = (((tileCount - 1) - ((y * columnCount) + x)) * bitsPerTile)
+shiftForTile x y = ((maxTileIndex - ((y * columnCount) + x)) * bitsPerTile)
+  where maxTileIndex = (rowCount * columnCount) - 1
+
+tileMask = fromIntegral ((shiftL bitsPerTile 1) - 1)
 
 getTile :: Board -> (Coord, Coord) -> Tile
 getTile b (x, y) = tileMask .&. (shiftR b (shiftForTile x y))
@@ -73,14 +77,21 @@ seedBoard :: Board -> Rand -> Board
 seedBoard b rand = setTile b (pickCoord (emptyCoords b) rand) (seedValue rand)
   where pickCoord cs rand = 
           cs !! fromIntegral (mod rand (fromIntegral (length cs)))
-        seedValue rand = if (mod rand d) % d < highSeedProbability then 2 else 1
+        seedValue rand = 
+          if (mod rand d) % d < highSeedProbability then highSeed else lowSeed
         d = denominator highSeedProbability
 
-collapseTiles :: [Tile] -> [Tile]
-collapseTiles ts = 
-  leftPad (length ts) (combineTilesFromEnd (removeEmptyTiles ts))
-  where removeEmptyTiles ts = filter (\t -> t > 0) ts
-        combineTilesFromEnd tiles = reverse (combineTiles (reverse tiles))
+collapseCoordLists :: Board -> [[(Coord, Coord)]] -> Board
+collapseCoordLists b [] = b
+collapseCoordLists b (cs:rest) = collapseCoordLists (collapseCoords b cs) rest
+  where collapseCoords b cs = 
+          setTiles b cs (collapseTiles (getTiles b cs))
+        collapseTiles ts = 
+          leftPad (length ts) (combineTilesFromEnd (removeEmptyTiles ts))
+        removeEmptyTiles ts =
+          filter (\t -> t > 0) ts
+        combineTilesFromEnd tiles = 
+          reverse (combineTiles (reverse tiles))
         combineTiles (a:rest) =
           if length rest == 0 then [ a ]
           else if a == (head rest) then
@@ -91,12 +102,6 @@ collapseTiles ts =
         leftPad len cs = 
           if length cs < len then leftPad len (0:cs)
           else cs
-
-collapseCoordLists :: Board -> [[(Coord, Coord)]] -> Board
-collapseCoordLists b [] = b
-collapseCoordLists b (cs:rest) = collapseCoordLists (collapseCoords b cs) rest
-  where collapseCoords b cs = 
-          setTiles b cs (collapseTiles (getTiles b cs))
 
 collapseBoard :: Board -> Direction -> Board
 collapseBoard b dir = 
@@ -110,39 +115,18 @@ makeMove :: Board -> Direction -> Rand -> Board
 makeMove b dir rand = do
   let b' = collapseBoard b dir
   if b == b' then b
-  else (seedBoard b' rand)
+  else seedBoard b' rand
 
 isLosingBoard :: Board -> Bool
 isLosingBoard b = (length (emptyCoords b) == 0)
 
 isWinningBoard :: Board -> Bool
 isWinningBoard b = maximum (getTiles b allCoords) >= winningTile
+  where winningTile = fromIntegral ((winningIndex - firstIndex) + 1)
+        firstIndex = ord firstLetter
+        winningIndex = ord winningLetter
 
 -- RENDERING ------------------------------------------------------------------
-
-renderTile :: Tile -> String
-renderTile t = 
-  tileColor t ++
-  (if t == 0 then "." else letter (t - 1)) ++
-  borderColor
-  where letter i =
-          [ chr (firstLetter + (fromIntegral i)) ]
-
-renderRow :: Board -> Coord -> String
-renderRow b y = intercalate " " $ map renderTile (getTiles b (rowCoords y))
-
-renderBorder :: String
-renderBorder = "+" ++ (concat (replicate columnCount "--")) ++ "-+\n"
-
-renderBoard :: Board -> String
-renderBoard b = 
-  borderColor ++
-  renderBorder ++
-  concat (map (\r -> "| " ++ (renderRow b r) ++ " |\n") rows) ++
-  renderBorder ++
-  defaultColor
-
--- TERMINAL CONTROL -----------------------------------------------------------
 
 reset = "\ESC[" ++ (show (rowCount + 2)) ++ "A"
 
@@ -168,6 +152,24 @@ tileColorCode t = case t of
 
 tileColor :: Tile -> String
 tileColor t = "\ESC[38;5;" ++ (show (tileColorCode t)) ++ "m"
+
+renderBoard :: Board -> String
+renderBoard b = 
+  borderColor ++
+  renderBorder ++
+  concat (map (\r -> "| " ++ (renderRow b r) ++ " |\n") rows) ++
+  renderBorder ++
+  defaultColor
+  where renderBorder = 
+          "+" ++ (concat (replicate columnCount "--")) ++ "-+\n"
+        renderRow b y = 
+          intercalate " " $ map renderTile (getTiles b (rowCoords y))
+        renderTile t = 
+          tileColor t ++
+          (if t == 0 then "." else letter (t - 1)) ++
+          borderColor
+        letter i =
+          [ chr ((ord firstLetter) + (fromIntegral i)) ]
 
 -- IMPURITIES SINK TO THE BOTTOM ----------------------------------------------
 
