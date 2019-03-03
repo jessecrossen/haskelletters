@@ -1,4 +1,4 @@
-import System.IO (stdin, hSetEcho, hSetBuffering, hReady, BufferMode(NoBuffering))
+import System.IO (stdin, hSetEcho, hSetBuffering, BufferMode(NoBuffering))
 import System.Random (getStdGen, randoms)
 import Data.Bits (shiftL, shiftR, complement, (.&.), (.|.))
 import Data.List (intercalate)
