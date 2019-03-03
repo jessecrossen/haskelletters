@@ -51,7 +51,7 @@ winningTile = fromIntegral ((winningIndex - firstIndex) + 1)
   where firstIndex = ord firstLetter
         winningIndex = ord winningLetter
 bitsPerTile = fromIntegral (tryShift 1)
-  where tryShift n = 
+  where tryShift n =
           if shiftL 1 n > winningTile then n else tryShift (n + 1)
 tileMask = (shiftL 1 bitsPerTile) - 1
 
@@ -63,7 +63,7 @@ getTile :: Board -> (Coord, Coord) -> Tile
 getTile b (x, y) = tileMask .&. (shiftR b (shiftForTile x y))
 
 setTile :: Board -> (Coord, Coord) -> Tile -> Board
-setTile b (x, y) t = 
+setTile b (x, y) t =
   (b .&. (complement (shiftL tileMask (shiftForTile x y))))
   .|. (shiftL (t .&. tileMask) (shiftForTile x y))
 
@@ -79,18 +79,18 @@ initBoard rand = seedBoard (seedBoard 0 rand) rand
 
 seedBoard :: Board -> Rand -> Board
 seedBoard b rand = setTile b (pickCoord (emptyCoords b) rand) (seedValue rand)
-  where pickCoord cs rand = 
+  where pickCoord cs rand =
           cs !! fromIntegral (mod rand (fromIntegral (length cs)))
-        seedValue rand = 
+        seedValue rand =
           if (mod rand d) % d < highSeedProbability then highSeed else lowSeed
         d = denominator highSeedProbability
 
 collapseCoordLists :: Board -> [[(Coord, Coord)]] -> Board
 collapseCoordLists b [] = b
 collapseCoordLists b (cs:rest) = collapseCoordLists (collapseCoords b cs) rest
-  where collapseCoords b cs = 
+  where collapseCoords b cs =
           setTiles b cs (collapseTiles (getTiles b cs))
-        collapseTiles ts = 
+        collapseTiles ts =
           padEnd (length ts) (combineTiles (removeEmptyTiles ts))
         removeEmptyTiles ts =
           filter (\t -> t > 0) ts
@@ -101,12 +101,12 @@ collapseCoordLists b (cs:rest) = collapseCoordLists (collapseCoords b cs) rest
           else
             [ a ] ++ (combineTiles rest)
         combineTiles rest = rest
-        padEnd len cs = 
+        padEnd len cs =
           if length cs < len then padEnd len (cs ++ [0])
           else cs
 
 collapseBoard :: Board -> Action -> Board
-collapseBoard b dir = 
+collapseBoard b dir =
   case dir of
     L -> collapseCoordLists b (map rowCoords rows)
     R -> collapseCoordLists b (map reverse (map rowCoords rows))
@@ -148,17 +148,17 @@ tileColor :: Tile -> String
 tileColor t = "\ESC[38;5;" ++ (show (tileColorCode t)) ++ "m"
 
 renderBoard :: Board -> String
-renderBoard b = 
+renderBoard b =
   borderColor ++
   (renderBorder "┏" "┓") ++
   concat (map (\r -> "┃ " ++ (renderRow b r) ++ " ┃\n") rows) ++
   (renderBorder "┗" "┛") ++
   defaultColor
-  where renderBorder lc rc = 
+  where renderBorder lc rc =
           lc ++ (concat (replicate columnCount "━━")) ++ "━" ++ rc ++ "\n"
-        renderRow b y = 
+        renderRow b y =
           intercalate " " $ map renderTile (getTiles b (rowCoords y))
-        renderTile t = 
+        renderTile t =
           tileColor t ++
           (if t == 0 then "·" else letter (t - 1)) ++
           borderColor
