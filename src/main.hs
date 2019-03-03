@@ -1,5 +1,5 @@
 import System.IO (stdin, hSetEcho, hSetBuffering, hReady, BufferMode(NoBuffering))
-import System.Random (getStdRandom, random)
+import System.Random (getStdGen, randoms)
 import Data.Bits (shiftL, shiftR, complement, (.&.), (.|.))
 import Data.List (intercalate)
 import Data.Ratio (denominator, (%))
@@ -10,7 +10,7 @@ type Coord = Int
 type Tile = Integer
 type Rand = Integer
 
-data Direction = L | R | U | D deriving (Eq,Ord,Enum,Show)
+data Action = L | R | U | D | Quit | None deriving (Eq,Ord,Enum,Show)
 
 -- CONFIG ---------------------------------------------------------------------
 
@@ -105,19 +105,14 @@ collapseCoordLists b (cs:rest) = collapseCoordLists (collapseCoords b cs) rest
           if length cs < len then padEnd len (cs ++ [0])
           else cs
 
-collapseBoard :: Board -> Direction -> Board
+collapseBoard :: Board -> Action -> Board
 collapseBoard b dir = 
   case dir of
     L -> collapseCoordLists b (map rowCoords rows)
     R -> collapseCoordLists b (map reverse (map rowCoords rows))
     U -> collapseCoordLists b (map columnCoords rows)
     D -> collapseCoordLists b (map reverse (map columnCoords rows))
-
-makeMove :: Board -> Direction -> Rand -> Board
-makeMove b dir rand = do
-  let b' = collapseBoard b dir
-  if b == b' then b
-  else seedBoard b' rand
+    _ -> b
 
 isLosingBoard :: Board -> Bool
 isLosingBoard b = (length (emptyCoords b) == 0)
@@ -170,38 +165,38 @@ renderBoard b =
         letter i =
           [ chr ((ord firstLetter) + (fromIntegral i)) ]
 
--- IMPURITIES SINK TO THE BOTTOM ----------------------------------------------
+--- GAMEPLAY ------------------------------------------------------------------
 
-getKey :: IO [Char]
-getKey = reverse <$> getKey' ""
-  where getKey' chars = do
-          char <- getChar
-          more <- hReady stdin
-          (if more then getKey' else return) (char:chars)
-
-play :: Board -> IO ()
-play b = do
-  rand <- getStdRandom random
-  putStr reset
-  putStr (renderBoard b)
+play :: Board -> [Rand] -> String -> String
+play b rands input =
+  reset ++ (renderBoard b) ++
   if isWinningBoard b then
-    putStrLn "You win!"
+    "You win!\n"
+  else if isLosingBoard b then
+    "Game Over.\n"
+  else if action input == Quit then
+    "You quit.\n"
   else
-    if isLosingBoard b then
-      putStrLn "Game Over."
-    else do
-      key <- getKey
-      case key of
-        "\ESC[A" -> play (makeMove b U rand)
-        "\ESC[B" -> play (makeMove b D rand)
-        "\ESC[C" -> play (makeMove b R rand)
-        "\ESC[D" -> play (makeMove b L rand)
-        "q"      -> putStrLn "You quit."
-        _        -> play b
+    play (makeMove b (action input) (head rands)) (tail rands) (tail input)
+  where action input =
+          case (head input) of
+            'A' -> U
+            'B' -> D
+            'C' -> R
+            'D' -> L
+            'q' -> Quit
+            _   -> None
+        makeMove b dir rand = do
+          let b' = collapseBoard b dir
+          if b == b' then b
+          else seedBoard b' rand
+
+-- IMPURITIES SINK TO THE BOTTOM ----------------------------------------------
 
 main = do
   hSetBuffering stdin NoBuffering
   hSetEcho stdin False
+  g <- getStdGen
+  let rands = randoms g :: [Rand]
   putStr (renderBoard 0)
-  seed <- getStdRandom random
-  play (initBoard seed)
+  interact (play (initBoard (head rands)) (tail rands))
