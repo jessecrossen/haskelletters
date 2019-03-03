@@ -12,22 +12,26 @@ type Rand = Integer
 
 data Direction = L | R | U | D deriving (Eq,Ord,Enum,Show)
 
---- CONFIG --------------------------------------------------------------------
+-- CONFIG ---------------------------------------------------------------------
 
---- the size of the board
+-- the size of the board
 columnCount = 4
 rowCount = 4
 tileCount = rowCount * columnCount
 
---- the probability of seeding a 2 instead of a 1
+-- tile storage format
+bitsPerTile = 4
+tileMask = fromIntegral ((shiftL bitsPerTile 1) - 1)
+
+-- the probability of seeding a B instead of an A
 highSeedProbability = 1 % 10
 
---- letters to show on tiles
+-- letters to show on tiles
 firstLetter = ord 'A'
 winningLetter = ord 'K'
 winningTile = fromIntegral ((winningLetter - firstLetter) + 1)
 
---- BOARD STATE ---------------------------------------------------------------
+-- BOARD STATE ----------------------------------------------------------------
 
 columns = [0..(columnCount - 1)]
 rows = [0..(rowCount - 1)]
@@ -45,15 +49,15 @@ emptyCoords :: Board -> [(Coord, Coord)]
 emptyCoords b = filter (\c -> getTile b c == 0) allCoords
 
 shiftForTile :: Coord -> Coord -> Int
-shiftForTile x y = (((tileCount - 1) - ((y * columnCount) + x)) * 4)
+shiftForTile x y = (((tileCount - 1) - ((y * columnCount) + x)) * bitsPerTile)
 
 getTile :: Board -> (Coord, Coord) -> Tile
-getTile b (x, y) = 0xF .&. (shiftR b (shiftForTile x y))
+getTile b (x, y) = tileMask .&. (shiftR b (shiftForTile x y))
 
 setTile :: Board -> (Coord, Coord) -> Tile -> Board
 setTile b (x, y) t = 
-  (b .&. (complement (shiftL 0xF (shiftForTile x y))))
-  .|. (shiftL t (shiftForTile x y))
+  (b .&. (complement (shiftL tileMask (shiftForTile x y))))
+  .|. (shiftL (t .&. tileMask) (shiftForTile x y))
 
 getTiles :: Board -> [(Coord, Coord)] -> [Tile]
 getTiles b cs = map (\c -> getTile b c) cs
@@ -114,7 +118,8 @@ isLosingBoard b = (length (emptyCoords b) == 0)
 isWinningBoard :: Board -> Bool
 isWinningBoard b = maximum (getTiles b allCoords) >= winningTile
 
---- RENDERING -----------------------------------------------------------------
+-- RENDERING ------------------------------------------------------------------
+
 renderTile :: Tile -> String
 renderTile t = 
   tileColor t ++
@@ -137,7 +142,7 @@ renderBoard b =
   renderBorder ++
   defaultColor
 
---- TERMINAL CONTROL ----------------------------------------------------------
+-- TERMINAL CONTROL -----------------------------------------------------------
 
 reset = "\ESC[" ++ (show (rowCount + 2)) ++ "A"
 
@@ -164,7 +169,7 @@ tileColorCode t = case t of
 tileColor :: Tile -> String
 tileColor t = "\ESC[38;5;" ++ (show (tileColorCode t)) ++ "m"
 
---- IMPURE PART ---------------------------------------------------------------
+-- IMPURITIES SINK TO THE BOTTOM ----------------------------------------------
 
 getKey :: IO [Char]
 getKey = reverse <$> getKey' ""
