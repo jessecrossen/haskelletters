@@ -53,7 +53,7 @@ winningTile = fromIntegral ((winningIndex - firstIndex) + 1)
 bitsPerTile = fromIntegral (tryShift 1)
   where tryShift n = 
           if shiftL 1 n > winningTile then n else tryShift (n + 1)
-tileMask = fromIntegral ((shiftL bitsPerTile 1) - 1)
+tileMask = fromIntegral ((shiftL 1 bitsPerTile) - 1)
 
 shiftForTile :: Coord -> Coord -> Int
 shiftForTile x y = ((maxTileIndex - ((y * columnCount) + x)) * bitsPerTile)
