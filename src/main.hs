@@ -167,6 +167,10 @@ renderBoard b =
 
 --- GAMEPLAY ------------------------------------------------------------------
 
+start :: [Rand] -> String -> String
+start rands input =
+  (renderBoard 0) ++ (play (initBoard (head rands)) (tail rands) input)
+
 play :: Board -> [Rand] -> String -> String
 play b rands input =
   reset ++ (renderBoard b) ++
@@ -197,6 +201,4 @@ main = do
   hSetBuffering stdin NoBuffering
   hSetEcho stdin False
   g <- getStdGen
-  let rands = randoms g :: [Rand]
-  putStr (renderBoard 0)
-  interact (play (initBoard (head rands)) (tail rands))
+  interact $ start (randoms g :: [Rand])
